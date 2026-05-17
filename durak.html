@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ДУРАК — Manhattan Card Club</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Special+Elite&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root {
+  --gold: #c9a84c; --gold-light: #e8c96a;
+  --cream: #f5f0e8; --bg: #0d1a0d; --table: #1a3a1a;
+  --burgundy: #8b0000; --dark: #0a0a0a;
+  --card-bg: #faf8f2; --red: #c0392b; --black-card: #1a1a1a;
+  --cw: 62px; --ch: 90px; --cf: 10px; --cc: 24px; --hand-gap: 4px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body { background: var(--bg); font-family: 'Special Elite', cursive; color: var(--cream);
+  background-image: repeating-linear-gradient(45deg,transparent,transparent 40px,rgba(201,168,76,.03) 40px,rgba(201,168,76,.03) 41px),
+                    repeating-linear-gradient(-45deg,transparent,transparent 40px,rgba(201,168,76,.03) 40px,rgba(201,168,76,.03) 41px); }
+
+/* ── HEADER ── */
+#header { text-align:center; padding:8px 0 4px; border-bottom:2px solid var(--gold); position:relative; background:linear-gradient(180deg,#0a0a0a,var(--bg)); flex-shrink:0; }
+#header::before,#header::after { content:'◆ ◆ ◆'; color:var(--gold); font-size:10px; letter-spacing:6px; position:absolute; bottom:-8px; background:var(--bg); padding:0 8px; }
+#header::before { left:20px; } #header::after { right:20px; }
+.title-main { font-family:'Playfair Display',serif; font-size:26px; font-weight:900; color:var(--gold); letter-spacing:10px; text-transform:uppercase; text-shadow:0 0 20px rgba(201,168,76,.4); }
+.title-sub { font-size:9px; letter-spacing:5px; color:var(--cream); opacity:.6; text-transform:uppercase; }
+
+/* ── LAYOUT ── */
+#game-wrapper { display:flex; flex-direction:column; height:calc(100vh - 52px); padding:6px 10px; gap:4px; }
+.zone-label { font-size:8px; letter-spacing:4px; color:var(--gold); opacity:.65; text-transform:uppercase; text-align:center; margin-bottom:2px; }
+
+/* ── COMPUTER ── */
+#computer-area { display:flex; flex-direction:column; align-items:center; flex-shrink:0; }
+#computer-hand { display:flex; justify-content:center; gap:var(--hand-gap); flex-wrap:nowrap; }
+#opp-label { font-size:10px; letter-spacing:2px; color:var(--gold); opacity:.7; text-align:center; margin-bottom:2px; }
+
+/* ── MIDDLE ── */
+#middle-row { display:flex; align-items:center; gap:10px; justify-content:space-between; flex-shrink:0; }
+#deck-area { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+#deck-pile { position:relative; width:var(--cw); height:var(--ch); cursor:default; flex-shrink:0; }
+#deck-pile .card-back { position:absolute; }
+#deck-count { position:absolute; bottom:-16px; left:50%; transform:translateX(-50%); font-size:9px; color:var(--gold); letter-spacing:1px; white-space:nowrap; }
+#trump-card-display { position:relative; flex-shrink:0; }
+#trump-label { position:absolute; top:-14px; left:50%; transform:translateX(-50%); font-size:8px; letter-spacing:2px; color:var(--gold); white-space:nowrap; }
+#trump-suit-badge { text-align:center; font-size:10px; color:var(--gold); letter-spacing:1px; margin-top:3px; }
+#status-panel { flex:1; text-align:center; padding:6px 10px; border:1px solid rgba(201,168,76,.3); background:rgba(0,0,0,.3); position:relative; min-width:0; }
+#status-panel::before { content:''; position:absolute; top:3px; left:3px; right:3px; bottom:3px; border:1px solid rgba(201,168,76,.12); pointer-events:none; }
+#status-text { font-family:'Playfair Display',serif; font-size:13px; color:var(--gold); line-height:1.2; }
+#phase-text { font-size:9px; letter-spacing:1px; color:var(--cream); opacity:.65; margin-top:2px; text-transform:uppercase; }
+#scores { display:flex; gap:16px; justify-content:center; font-size:9px; letter-spacing:1px; color:var(--cream); opacity:.55; margin-top:2px; }
+.score-item span { color:var(--gold); font-size:11px; }
+#conn-badge { font-size:8px; letter-spacing:1px; margin-top:2px; }
+#conn-badge.online { color:#6f6; } #conn-badge.offline { color:#f66; } #conn-badge.waiting { color:var(--gold); }
+
+/* ── TABLE ── */
+#table-area { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:0; }
+#play-table { width:100%; max-width:700px; min-height:110px; background:var(--table); border:2px solid var(--gold); border-radius:4px; padding:10px; display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; position:relative; box-shadow:0 0 30px rgba(0,0,0,.8),inset 0 0 60px rgba(0,0,0,.3); transition:border-color .2s; }
+#play-table::before,#play-table::after { content:'✦'; position:absolute; color:var(--gold); opacity:.35; font-size:11px; pointer-events:none; }
+#play-table::before { top:5px; left:7px; } #play-table::after { bottom:5px; right:7px; }
+#play-table.drag-over { border-color:var(--gold-light); }
+#table-empty-msg { color:rgba(201,168,76,.3); font-size:11px; letter-spacing:3px; text-transform:uppercase; pointer-events:none; }
+
+/* ── PLAYER ── */
+#player-area { display:flex; flex-direction:column; align-items:center; gap:5px; flex-shrink:0; }
+#player-hand { display:flex; justify-content:center; gap:var(--hand-gap); flex-wrap:nowrap; }
+#player-actions { display:flex; gap:8px; align-items:center; justify-content:center; }
+#ai-thinking { font-size:9px; letter-spacing:2px; color:var(--gold); opacity:0; transition:opacity .3s; text-transform:uppercase; }
+#ai-thinking.visible { opacity:.8; }
+
+/* ── BUTTONS ── */
+.btn { font-family:'Special Elite',cursive; font-size:11px; letter-spacing:2px; text-transform:uppercase; padding:8px 18px; border:2px solid var(--gold); background:transparent; color:var(--gold); cursor:pointer; transition:all .2s; position:relative; touch-action:manipulation; }
+.btn::before { content:''; position:absolute; top:3px; left:3px; right:3px; bottom:3px; border:1px solid rgba(201,168,76,.25); }
+.btn:hover:not(:disabled),.btn:active:not(:disabled) { background:var(--gold); color:var(--dark); }
+.btn:disabled { opacity:.25; cursor:not-allowed; }
+.btn-danger { border-color:var(--burgundy); color:#e88; }
+.btn-danger::before { border-color:rgba(139,0,0,.25); }
+.btn-danger:hover:not(:disabled),.btn-danger:active:not(:disabled) { background:var(--burgundy); color:var(--cream); }
+.btn-sm { padding:6px 12px; font-size:10px; letter-spacing:1px; }
+
+/* ── CARDS ── */
+.card { width:var(--cw); height:var(--ch); border-radius:4px; border:1px solid rgba(0,0,0,.3); background:var(--card-bg); display:flex; flex-direction:column; justify-content:space-between; padding:3px 4px; cursor:pointer; transition:transform .15s,box-shadow .15s; position:relative; user-select:none; box-shadow:2px 2px 6px rgba(0,0,0,.5); flex-shrink:0; touch-action:none; }
+.card:hover:not(.card-back):not(.card-disabled) { transform:translateY(-8px); box-shadow:4px 8px 16px rgba(0,0,0,.7); z-index:10; }
+.card.selected { transform:translateY(-12px); box-shadow:0 0 12px var(--gold),4px 8px 16px rgba(0,0,0,.7); z-index:11; }
+.card.card-disabled { cursor:default; }
+.card.dragging { opacity:.35; transform:scale(.95); }
+.table-attack-card.can-drop { outline:2px solid var(--gold-light); outline-offset:2px; }
+.card-corner { font-size:var(--cf); font-weight:bold; line-height:1; }
+.card-corner.bottom { transform:rotate(180deg); align-self:flex-end; }
+.card-center { font-size:var(--cc); text-align:center; flex:1; display:flex; align-items:center; justify-content:center; }
+.suit-hearts,.suit-diamonds { color:var(--red); }
+.suit-spades,.suit-clubs { color:var(--black-card); }
+.card::before { content:''; position:absolute; top:2px; left:2px; right:2px; bottom:2px; border:1px solid rgba(0,0,0,.07); border-radius:3px; pointer-events:none; }
+.card-back { background:linear-gradient(135deg,#1a0a0a,#2d1515 50%,#1a0a0a); cursor:default; }
+.card-back-pattern { position:absolute; top:4px; left:4px; right:4px; bottom:4px; border:2px solid var(--gold); opacity:.55; border-radius:2px; background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(201,168,76,.1) 6px,rgba(201,168,76,.1) 7px),repeating-linear-gradient(-45deg,transparent,transparent 6px,rgba(201,168,76,.1) 6px,rgba(201,168,76,.1) 7px); }
+.card-trump-indicator { position:absolute; top:-4px; right:-4px; background:var(--gold); color:var(--dark); font-size:7px; padding:1px 3px; font-weight:bold; }
+#drag-ghost { position:fixed; pointer-events:none; z-index:9999; opacity:.85; transform:scale(1.08) rotate(3deg); display:none; box-shadow:6px 12px 24px rgba(0,0,0,.8); }
+
+/* ── CHAT ── */
+#chat-toggle { position:fixed; bottom:12px; right:12px; width:42px; height:42px; background:var(--bg); border:2px solid var(--gold); color:var(--gold); font-size:18px; cursor:pointer; z-index:50; display:none; align-items:center; justify-content:center; transition:all .2s; }
+#chat-toggle:hover { background:var(--gold); color:var(--dark); }
+#chat-toggle .badge { position:absolute; top:-5px; right:-5px; background:var(--red); color:white; font-size:9px; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; display:none; }
+#chat-panel { position:fixed; bottom:62px; right:12px; width:260px; max-width:calc(100vw - 24px); background:var(--bg); border:2px solid var(--gold); z-index:51; display:none; flex-direction:column; }
+#chat-panel.open { display:flex; }
+#chat-title { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--gold); padding:6px 10px; border-bottom:1px solid rgba(201,168,76,.3); }
+#chat-msgs { flex:1; max-height:160px; overflow-y:auto; padding:6px 8px; display:flex; flex-direction:column; gap:4px; }
+.chat-msg { font-size:11px; line-height:1.3; }
+.chat-msg .who { color:var(--gold); font-size:9px; }
+.chat-msg.mine .who { color:#8cf; }
+#chat-input-row { display:flex; border-top:1px solid rgba(201,168,76,.3); }
+#chat-input { flex:1; background:transparent; border:none; outline:none; color:var(--cream); font-family:'Special Elite',cursive; font-size:11px; padding:6px 8px; }
+#chat-send { background:transparent; border:none; border-left:1px solid rgba(201,168,76,.3); color:var(--gold); cursor:pointer; padding:0 10px; font-size:14px; }
+#chat-send:hover { background:rgba(201,168,76,.1); }
+
+/* ── OVERLAYS ── */
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:100; align-items:center; justify-content:center; }
+.overlay.active { display:flex; }
+.modal { background:var(--bg); border:3px solid var(--gold); padding:36px 48px; text-align:center; position:relative; max-width:420px; width:90%; }
+.modal::before { content:''; position:absolute; top:8px; left:8px; right:8px; bottom:8px; border:1px solid rgba(201,168,76,.35); }
+.modal-title { font-family:'Playfair Display',serif; font-size:32px; font-weight:900; color:var(--gold); text-shadow:0 0 20px rgba(201,168,76,.5); letter-spacing:4px; margin-bottom:8px; }
+.modal-sub { font-size:12px; letter-spacing:3px; color:var(--cream); opacity:.7; margin-bottom:20px; text-transform:uppercase; }
+.modal-body { margin-bottom:24px; }
+.btn-group { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+input.room-input { font-family:'Special Elite',cursive; font-size:18px; letter-spacing:6px; text-transform:uppercase; text-align:center; padding:10px 16px; background:rgba(0,0,0,.5); border:2px solid var(--gold); color:var(--gold); width:180px; outline:none; }
+input.room-input::placeholder { color:rgba(201,168,76,.4); letter-spacing:4px; font-size:14px; }
+#room-code-display { font-family:'Playfair Display',serif; font-size:32px; font-weight:900; letter-spacing:10px; color:var(--gold-light); text-shadow:0 0 16px rgba(201,168,76,.6); margin:8px 0; cursor:pointer; }
+#room-code-display:hover { text-shadow:0 0 24px rgba(201,168,76,.9); }
+.copy-hint { font-size:9px; color:var(--cream); opacity:.5; letter-spacing:2px; margin-bottom:16px; }
+.spinner { display:inline-block; width:20px; height:20px; border:2px solid rgba(201,168,76,.3); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; vertical-align:middle; margin-right:6px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── MOBILE ── */
+@media(max-width:540px) {
+  :root { --cw:46px; --ch:68px; --cf:8px; --cc:18px; --hand-gap:3px; }
+  .title-main { font-size:20px; letter-spacing:7px; }
+  #header::before,#header::after { display:none; }
+  #game-wrapper { padding:4px 6px; gap:3px; height:calc(100dvh - 44px); }
+  #status-text { font-size:12px; }
+  #phase-text { display:none; }
+  .btn { font-size:10px; letter-spacing:1px; padding:9px 12px; }
+  .modal { padding:28px 24px; }
+  .modal-title { font-size:26px; }
+  #chat-panel { width:calc(100vw - 24px); right:12px; }
+}
+@media(max-width:360px) {
+  :root { --cw:40px; --ch:60px; --cf:7px; --cc:14px; --hand-gap:2px; }
+}
+@media(max-height:500px) and (max-width:900px) {
+  :root { --cw:40px; --ch:58px; --cf:7px; --cc:14px; --hand-gap:2px; }
+  .title-main { font-size:16px; letter-spacing:5px; }
+  .title-sub,#header::before,#header::after { display:none; }
+  #header { padding:4px 0 2px; }
+  #game-wrapper { height:calc(100dvh - 34px); gap:2px; padding:2px 6px; }
+  #phase-text,#scores,.zone-label { display:none; }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="title-main">Дурак</div>
+  <div class="title-sub">Manhattan Card Club · Est. 1923</div>
+</div>
+
+<div id="game-wrapper">
+  <div id="computer-area">
+    <div id="opp-label">▲ Соперник</div>
+    <div id="computer-hand"></div>
+  </div>
+  <div id="middle-row">
+    <div id="deck-area">
+      <div id="deck-pile"><div id="deck-count"></div></div>
+      <div id="trump-card-display">
+        <div id="trump-label">КОЗЫРЬ</div>
+        <div id="trump-card-slot"></div>
+        <div id="trump-suit-badge"></div>
+      </div>
+    </div>
+    <div id="status-panel">
+      <div id="status-text">Добро пожаловать</div>
+      <div id="phase-text">Manhattan Card Club</div>
+      <div id="scores">
+        <div class="score-item">Победы: <span id="score-player">0</span></div>
+        <div class="score-item">Поражения: <span id="score-comp">0</span></div>
+      </div>
+      <div id="conn-badge"></div>
+    </div>
+  </div>
+  <div id="table-area">
+    <div class="zone-label">— Стол —</div>
+    <div id="play-table"><div id="table-empty-msg">Стол пуст</div></div>
+  </div>
+  <div id="player-area">
+    <div class="zone-label">▼ Вы</div>
+    <div id="player-hand"></div>
+    <div id="player-actions">
+      <div id="ai-thinking">● Думает...</div>
+      <button class="btn btn-danger" id="btn-take" disabled>Взять</button>
+      <button class="btn" id="btn-done" disabled>Готово</button>
+    </div>
+  </div>
+</div>
+
+<div id="drag-ghost" class="card"></div>
+
+<!-- Chat -->
+<button id="chat-toggle" title="Чат">💬<span class="badge" id="chat-badge">0</span></button>
+<div id="chat-panel">
+  <div id="chat-title">Чат</div>
+  <div id="chat-msgs"></div>
+  <div id="chat-input-row">
+    <input id="chat-input" type="text" placeholder="Сообщение..." maxlength="120">
+    <button id="chat-send">➤</button>
+  </div>
+</div>
+
+<!-- START SCREEN -->
+<div class="overlay active" id="start-overlay">
+  <div class="modal">
+    <div class="modal-title">ДУРАК</div>
+    <div class="modal-sub">Manhattan Card Club</div>
+    <div class="modal-body">
+      <div class="btn-group" style="flex-direction:column;align-items:center;gap:14px;">
+        <button class="btn" id="btn-vs-ai" style="width:200px;">Против компьютера</button>
+        <button class="btn" id="btn-create" style="width:200px;">Создать игру</button>
+        <button class="btn" id="btn-join-start" style="width:200px;">Войти по коду</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE LOBBY -->
+<div class="overlay" id="create-overlay">
+  <div class="modal">
+    <div class="modal-title">ИГРА СОЗДАНА</div>
+    <div class="modal-sub">Дайте код другу</div>
+    <div class="modal-body">
+      <div id="room-code-display" title="Нажмите чтобы скопировать">——</div>
+      <div class="copy-hint">↑ нажмите чтобы скопировать</div>
+      <div id="lobby-status" style="font-size:11px;color:var(--cream);opacity:.7;">
+        <span class="spinner"></span>Ожидание игрока...
+      </div>
+    </div>
+    <button class="btn btn-danger btn-sm" id="btn-cancel-create">Отмена</button>
+  </div>
+</div>
+
+<!-- JOIN LOBBY -->
+<div class="overlay" id="join-overlay">
+  <div class="modal">
+    <div class="modal-title">ВОЙТИ</div>
+    <div class="modal-sub">Введите код игры</div>
+    <div class="modal-body">
+      <input class="room-input" id="join-code-input" type="text" placeholder="XXXXXX" maxlength="6">
+      <div id="join-status" style="font-size:11px;color:#e88;margin-top:10px;min-height:16px;"></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-danger btn-sm" id="btn-cancel-join">Отмена</button>
+      <button class="btn btn-sm" id="btn-do-join">Подключиться</button>
+    </div>
+  </div>
+</div>
+
+<!-- END GAME -->
+<div class="overlay" id="end-overlay">
+  <div class="modal">
+    <div class="modal-title" id="end-title">ДУРАК!</div>
+    <div class="modal-sub" id="end-sub">Партия окончена</div>
+    <div class="modal-body" id="end-score"></div>
+    <div class="btn-group">
+      <button class="btn btn-sm" id="btn-new-game">Новая партия</button>
+      <button class="btn btn-danger btn-sm" id="btn-to-menu">В меню</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  CONSTANTS
+// ════════════════════════════════════════════════
+const SUITS = ['♠','♥','♦','♣'];
+const SUIT_NAMES = {'♠':'spades','♥':'hearts','♦':'diamonds','♣':'clubs'};
+const RANKS = ['6','7','8','9','10','J','Q','K','A'];
+const RANK_VAL = Object.fromEntries(RANKS.map((r,i)=>[r,i]));
+
+// ════════════════════════════════════════════════
+//  NETWORK STATE
+// ════════════════════════════════════════════════
+let peer = null, conn = null;
+let myRole = 'solo';         // 'solo' | 'host' | 'guest'
+let guestSelected = null;    // guest local card selection for defense UI
+let unreadChat = 0;
+
+// ════════════════════════════════════════════════
+//  GAME STATE
+// ════════════════════════════════════════════════
+let G = {};
+let scores = { player: 0, comp: 0 };
+let dragCard = null, dragSource = null;
+const ghost = document.getElementById('drag-ghost');
+
+function newG(attacker) {
+  const deck = shuffle(makeDeck());
+  const trumpCard = deck[deck.length-1];
+  const pHand=[], cHand=[];
+  for(let i=0;i<6;i++) pHand.push(deck.shift());
+  for(let i=0;i<6;i++) cHand.push(deck.shift());
+  return { deck, trumpCard, trumpSuit:trumpCard.suit, playerHand:pHand, compHand:cHand,
+           table:[], phase:'attack', attacker:attacker||'player',
+           selectedCard:null, gameOver:false, roundEnding:false };
+}
+function makeDeck() {
+  const d=[];
+  for(const s of SUITS) for(const r of RANKS) d.push({suit:s,rank:r,id:s+r});
+  return d;
+}
+function shuffle(a) {
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+// ════════════════════════════════════════════════
+//  GAME LOGIC
+// ════════════════════════════════════════════════
+function beats(att,def,trump) {
+  if(def.suit===att.suit) return RANK_VAL[def.rank]>RANK_VAL[att.rank];
+  return def.suit===trump && att.suit!==trump;
+}
+function canAttack(card) {
+  if(!G.table.length) return true;
+  const r=new Set(); G.table.forEach(p=>{r.add(p.attack.rank);if(p.defense)r.add(p.defense.rank);});
+  return r.has(card.rank);
+}
+function canDefend(def,att) { return beats(att,def,G.trumpSuit); }
+function canTransferWith(card) {
+  if(!G.table.length||G.table.some(p=>p.defense)) return false;
+  const ar=new Set(G.table.map(p=>p.attack.rank));
+  if(!ar.has(card.rank)) return false;
+  const newDef = G.attacker==='comp' ? G.playerHand : G.compHand;
+  return (G.table.length+1)<=newDef.length;
+}
+function maxAttack() { const d=G.attacker==='player'?G.compHand:G.playerHand; return Math.max(1,Math.min(6,d.length)); }
+function undefended() { return G.table.filter(p=>!p.defense); }
+function allDefended() { return G.table.length>0&&G.table.every(p=>p.defense); }
+function drawCards() {
+  const ord=G.attacker==='player'?['player','comp']:['comp','player'];
+  for(const w of ord){ const h=w==='player'?G.playerHand:G.compHand; while(h.length<6&&G.deck.length>0)h.push(G.deck.shift()); }
+}
+function checkWin() {
+  if(G.deck.length>0) return null;
+  const p=!G.playerHand.length, c=!G.compHand.length;
+  if(p&&c) return 'draw'; if(p) return 'player'; if(c) return 'comp'; return null;
+}
+function switchAtt() { G.attacker=G.attacker==='player'?'comp':'player'; }
+function removeFrom(hand,card) { const i=hand.findIndex(c=>c.id===card.id); if(i!==-1)hand.splice(i,1); }
+function sortCards(a,b) { const at=a.suit===G.trumpSuit?1:0,bt=b.suit===G.trumpSuit?1:0; if(at!==bt)return at-bt; return RANK_VAL[a.rank]-RANK_VAL[b.rank]; }
+
+// ════════════════════════════════════════════════
+//  AI (solo only)
+// ════════════════════════════════════════════════
+function aiTakeTurn() {
+  if(myRole!=='solo'||G.gameOver) return;
+  showThinking(true);
+  setTimeout(()=>{ if(G.attacker==='comp')aiAttack(); else aiDefend(); showThinking(false); },700+Math.random()*500);
+}
+function aiAttack() {
+  const h=G.compHand; if(!h.length){endRoundWon();return;}
+  const c=h.filter(x=>canAttack(x)); if(!c.length){endRoundWon();return;}
+  c.sort(sortCards); const card=c[0];
+  removeFrom(G.compHand,card); G.table.push({attack:card}); G.phase='defense'; render();
+  setTimeout(()=>aiMaybeThrowMore(),300);
+}
+function aiMaybeThrowMore() {
+  if(G.phase!=='defense'||G.attacker!=='comp'||!allDefended()) return;
+  const c=G.compHand.filter(x=>canAttack(x)); const mx=maxAttack()-G.table.length;
+  if(!c.length||mx<=0||Math.random()<.5){setStatus('Ход завершён','Нажмите «Готово»');updateButtons();return;}
+  c.sort(sortCards); removeFrom(G.compHand,c[0]); G.table.push({attack:c[0]});
+  render(); setStatus('AI подбросил','Отбивайте!'); updateButtons();
+}
+function aiDefend() {
+  const undef=undefended(); if(!undef.length) return;
+  const hand=G.compHand;
+  if(!G.table.some(p=>p.defense)){
+    const tc=hand.filter(c=>canTransferWith(c));
+    const defAll=undef.every(p=>hand.some(c=>canDefend(c,p.attack)));
+    if(tc.length&&(!defAll||(hand.length<=3&&Math.random()<.35))){
+      tc.sort(sortCards); removeFrom(G.compHand,tc[0]);
+      G.table.push({attack:tc[0]}); G.attacker='player'; G.phase='defense'; G.selectedCard=null;
+      render(); setStatus('AI перевёл!','Теперь вы защищаетесь'); updateButtons(); return;
+    }
+  }
+  let took=false;
+  for(const pair of undef){
+    const able=hand.filter(c=>canDefend(c,pair.attack));
+    if(!able.length){took=true;break;}
+    able.sort(sortCards); removeFrom(hand,able[0]); pair.defense=able[0];
+  }
+  if(took){
+    G.roundEnding=true; setStatus('AI забирает...','Ход у вас'); updateButtons();
+    setTimeout(()=>{
+      G.compHand.push(...G.table.flatMap(p=>[p.attack,p.defense].filter(Boolean)));
+      G.table=[]; G.roundEnding=false; drawCards();
+      const w=checkWin(); if(w){endGame(w);return;}
+      G.phase='attack'; render(); setStatus('Ваш ход','Атакуйте'); updateButtons();
+    },3000);
+  } else {
+    render(); G.phase='defense';
+    setStatus('Отбито! Подбросить ещё?','Нажмите «Готово» или подбросьте'); updateButtons();
+    if(!G.playerHand.some(c=>canAttack(c))||!G.playerHand.length) setTimeout(()=>endRoundWon(),600);
+  }
+}
+
+// ════════════════════════════════════════════════
+//  ROUND END
+// ════════════════════════════════════════════════
+function endRoundWon() {
+  if(G.roundEnding) return;
+  G.roundEnding=true; G.selectedCard=null; guestSelected=null;
+  setStatus('Ход завершён','Карты уходят...'); updateButtons();
+  if(myRole==='host') syncToGuest();
+  setTimeout(()=>{
+    G.table=[]; G.roundEnding=false; drawCards();
+    const w=checkWin(); if(w){endGame(w);return;}
+    switchAtt(); G.phase='attack'; render();
+    if(myRole==='solo'){
+      if(G.attacker==='comp'){setStatus('AI атакует','Защищайтесь');setTimeout(()=>aiTakeTurn(),800);}
+      else setStatus('Ваш ход','Атакуйте');
+    } else {
+      if(myRole==='host') syncToGuest();
+      updateTurnStatus();
+    }
+    updateButtons();
+  },3000);
+}
+
+function endGame(winner) {
+  G.gameOver=true; G.phase='done';
+  let title,sub;
+  if(winner==='draw'){title='НИЧЬЯ';sub='Оба избавились от карт';}
+  else {
+    const iWin = (myRole==='guest'&&winner==='comp')||(myRole!=='guest'&&winner==='player');
+    if(iWin){scores.player++;title='ПОБЕДА!';sub='Вы не дурак — браво';}
+    else {scores.comp++;title='ДУРАК!';sub='Вы остались с картами';}
+  }
+  if(myRole==='host') syncToGuest();
+  updateScoreDisplay();
+  setTimeout(()=>{
+    document.getElementById('end-title').textContent=title;
+    document.getElementById('end-sub').textContent=sub;
+    document.getElementById('end-score').textContent=`Победы: ${scores.player}  |  Поражения: ${scores.comp}`;
+    document.getElementById('end-overlay').classList.add('active');
+  },500);
+}
+
+// ════════════════════════════════════════════════
+//  PLAYER ACTIONS  (host/solo perspective)
+// ════════════════════════════════════════════════
+function playerPlayToTable(card) {
+  if(G.gameOver||G.roundEnding) return false;
+  if(G.attacker==='player'&&(G.phase==='attack'||G.phase==='defense')){
+    if(!canAttack(card)){flash('Нельзя — нет такого номинала');return false;}
+    if(G.table.length>=maxAttack()){flash('Слишком много карт');return false;}
+    removeFrom(G.playerHand,card); G.table.push({attack:card});
+    G.selectedCard=null; G.phase='defense'; render(); updateButtons();
+    setStatus('Соперник отбивается...','');
+    if(myRole==='solo') setTimeout(()=>aiDefend(),900);
+    else syncToGuest();
+    return true;
+  }
+  if(G.attacker==='comp'&&G.phase==='defense'&&!undefended().length){
+    if(!canAttack(card)){flash('Нельзя подбросить');return false;}
+    if(G.table.length>=maxAttack()){flash('Соперник не возьмёт больше');return false;}
+    removeFrom(G.playerHand,card); G.table.push({attack:card});
+    G.selectedCard=null; render(); updateButtons();
+    setStatus('Карта подброшена','Соперник отбивается');
+    if(myRole==='solo') setTimeout(()=>aiDefend(),900);
+    else syncToGuest();
+    return true;
+  }
+  return false;
+}
+
+function playerDefendPair(defCard,pair) {
+  if(G.gameOver||G.roundEnding) return false;
+  if(pair.defense){flash('Уже отбита');return false;}
+  if(!canDefend(defCard,pair.attack)){flash('Этой картой не отбить');return false;}
+  removeFrom(G.playerHand,defCard); pair.defense=defCard; G.selectedCard=null;
+  render(); updateButtons();
+  if(allDefended()){
+    setStatus('Все отбито!','Нажмите «Готово»');
+    if(myRole==='solo') setTimeout(()=>aiMaybeThrowMore(),600);
+    else syncToGuest();
+  } else {
+    setStatus('Отбивайте остальные','');
+    if(myRole==='host') syncToGuest();
+  }
+  return true;
+}
+
+function playerTransfer(card) {
+  removeFrom(G.playerHand,card); G.table.push({attack:card});
+  G.attacker='player'; G.phase='defense'; G.selectedCard=null;
+  render(); setStatus('Перевод! Соперник защищается',''); updateButtons();
+  if(myRole==='solo') setTimeout(()=>aiDefend(),900);
+  else syncToGuest();
+}
+
+function playerTake() {
+  if(G.gameOver||G.roundEnding) return;
+  if(!(G.attacker==='comp'&&G.phase==='defense')) return;
+  G.playerHand.push(...G.table.flatMap(p=>[p.attack,p.defense].filter(Boolean)));
+  G.table=[]; G.selectedCard=null; drawCards();
+  const w=checkWin(); if(w){endGame(w);return;}
+  G.phase='attack'; render();
+  setStatus('Вы забрали','Соперник атакует снова'); updateButtons();
+  if(myRole==='solo') setTimeout(()=>aiTakeTurn(),800);
+  else syncToGuest();
+}
+
+function playerDone() {
+  if(G.gameOver||G.roundEnding) return;
+  if(G.attacker==='player'&&G.table.length>0&&!undefended().length){endRoundWon();return;}
+  if(G.attacker==='comp'&&G.phase==='defense'){
+    if(undefended().length){flash('Отбейте все карты');return;}
+    endRoundWon();
+  }
+}
+
+// ════════════════════════════════════════════════
+//  GUEST ACTIONS  (applied on HOST when msg arrives)
+// ════════════════════════════════════════════════
+function applyGuestAction(data) {
+  if(G.gameOver||G.roundEnding){syncToGuest();return;}
+  const {kind,cardId,pairIdx}=data;
+  if(kind==='attack'||kind==='throw'){
+    const card=G.compHand.find(c=>c.id===cardId); if(!card){syncToGuest();return;}
+    // attack: attacker='comp', phase='attack'
+    // throw: attacker='comp', phase='defense', allDefended
+    const okAtk=G.attacker==='comp'&&G.phase==='attack';
+    const okThrow=G.attacker==='comp'&&G.phase==='defense'&&allDefended();
+    if(!okAtk&&!okThrow){syncToGuest();return;}
+    if(!canAttack(card)||G.table.length>=maxAttack()){syncToGuest();return;}
+    removeFrom(G.compHand,card); G.table.push({attack:card}); G.phase='defense';
+    setStatus('Соперник атакует','Ваша очередь'); syncToGuest(); updateButtons();
+  } else if(kind==='defend'){
+    const card=G.compHand.find(c=>c.id===cardId); const pair=G.table[pairIdx];
+    if(!card||!pair||pair.defense||G.attacker!=='player'||G.phase!=='defense'){syncToGuest();return;}
+    if(!canDefend(card,pair.attack)){syncToGuest();return;}
+    removeFrom(G.compHand,card); pair.defense=card;
+    if(allDefended()) setStatus('Соперник отбил!','Подбросить ещё или Готово');
+    else setStatus('Соперник отбивается...','');
+    syncToGuest(); updateButtons();
+  } else if(kind==='transfer'){
+    const card=G.compHand.find(c=>c.id===cardId);
+    if(!card||!canTransferWith(card)){syncToGuest();return;}
+    removeFrom(G.compHand,card); G.table.push({attack:card});
+    G.attacker='comp'; G.phase='defense'; G.selectedCard=null;
+    setStatus('Соперник перевёл!','Ваша защита'); syncToGuest(); updateButtons();
+  } else if(kind==='take'){
+    if(G.attacker!=='player'||G.phase!=='defense'){syncToGuest();return;}
+    G.compHand.push(...G.table.flatMap(p=>[p.attack,p.defense].filter(Boolean)));
+    G.table=[]; drawCards();
+    const w=checkWin(); if(w){endGame(w);return;}
+    G.phase='attack'; setStatus('Соперник забрал','Ваш ход — атакуйте'); syncToGuest(); updateButtons();
+  } else if(kind==='done'){
+    if(G.attacker!=='comp'){syncToGuest();return;}
+    if(undefended().length){syncToGuest();return;}
+    endRoundWon();
+  }
+}
+
+// ════════════════════════════════════════════════
+//  CLICK HANDLERS
+// ════════════════════════════════════════════════
+function onCardClick(card) {
+  if(G.gameOver||G.roundEnding) return;
+  if(myRole==='guest'){ onGuestCardClick(card); return; }
+  // Host/solo
+  if(G.attacker==='comp'&&G.phase==='defense'&&undefended().length>0){
+    if(canTransferWith(card)){playerTransfer(card);return;}
+    if(G.selectedCard?.id===card.id){G.selectedCard=null;render();}
+    else{G.selectedCard=card;render();setStatus('Кликните карту атаки на столе','');}
+    return;
+  }
+  playerPlayToTable(card);
+}
+
+function onGuestCardClick(card) {
+  if(G.gameOver||G.roundEnding) return;
+  // Guest defends (host is attacker)
+  if(G.attacker==='player'&&G.phase==='defense'&&undefended().length>0){
+    if(canTransferWith(card)){sendAction({type:'action',kind:'transfer',cardId:card.id});return;}
+    if(guestSelected?.id===card.id){guestSelected=null;renderGuestHand();}
+    else{guestSelected=card;renderGuestHand();setStatus('Нажмите карту атаки на столе','');}
+    return;
+  }
+  // Guest attacks or throws
+  if(G.attacker==='comp'){
+    if(G.phase==='attack'||(G.phase==='defense'&&allDefended())){
+      sendAction({type:'action',kind:G.phase==='attack'?'attack':'throw',cardId:card.id});
+    }
+  }
+  // Guest подкидывание when host attacks and no undefended: not applicable for guest
+}
+
+function onTableCardClick(pair) {
+  if(G.gameOver||G.roundEnding) return;
+  if(myRole==='guest'){
+    if(G.attacker!=='player'||G.phase!=='defense'||pair.defense) return;
+    if(!guestSelected){flash('Сначала выберите карту');return;}
+    sendAction({type:'action',kind:'defend',cardId:guestSelected.id,pairIdx:G.table.indexOf(pair)});
+    guestSelected=null; return;
+  }
+  if(G.attacker!=='comp'||G.phase!=='defense'||pair.defense) return;
+  if(!G.selectedCard){flash('Сначала выберите карту');return;}
+  playerDefendPair(G.selectedCard,pair);
+}
+
+function guestTake() {
+  if(myRole!=='guest') return;
+  sendAction({type:'action',kind:'take'});
+}
+function guestDone() {
+  if(myRole!=='guest') return;
+  sendAction({type:'action',kind:'done'});
+}
+
+// ════════════════════════════════════════════════
+//  DRAG & DROP
+// ════════════════════════════════════════════════
+function posGhost(x,y){
+  const cw=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cw'));
+  const ch=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ch'));
+  ghost.style.left=(x-cw/2)+'px'; ghost.style.top=(y-ch/2-10)+'px';
+}
+function fillGhost(card){
+  const sn=SUIT_NAMES[card.suit]; const red=['hearts','diamonds'].includes(sn);
+  const color=red?'var(--red)':'var(--black-card)';
+  ghost.className='card';
+  ghost.style.width=getComputedStyle(document.documentElement).getPropertyValue('--cw').trim();
+  ghost.style.height=getComputedStyle(document.documentElement).getPropertyValue('--ch').trim();
+  ghost.innerHTML=`<div class="card-corner suit-${sn}" style="color:${color}"><div>${card.rank}</div><div>${card.suit}</div></div>
+    <div class="card-center suit-${sn}" style="color:${color}">${card.suit}</div>
+    <div class="card-corner bottom suit-${sn}" style="color:${color}"><div>${card.rank}</div><div>${card.suit}</div></div>
+    ${card.suit===G.trumpSuit?'<div class="card-trump-indicator">К</div>':''}`;
+  ghost.style.display='flex';
+}
+function startDrag(card,el,x,y){dragCard=card;dragSource=el;el.classList.add('dragging');fillGhost(card);posGhost(x,y);}
+function moveDrag(x,y){
+  if(!dragCard) return; posGhost(x,y);
+  ghost.style.display='none'; const under=document.elementFromPoint(x,y); ghost.style.display='flex';
+  document.querySelectorAll('.table-attack-card').forEach(e=>e.classList.remove('can-drop'));
+  document.getElementById('play-table').classList.remove('drag-over');
+  if(!under) return;
+  const attEl=under.closest('.table-attack-card');
+  if(attEl){
+    const idx=parseInt(attEl.dataset.pairIdx); const pair=G.table[idx];
+    const defHand=myRole==='guest'?G.compHand:G.playerHand;
+    if(pair&&!pair.defense&&canDefend(dragCard,pair.attack)&&defHand.find(c=>c.id===dragCard.id))
+      attEl.classList.add('can-drop');
+  } else {
+    const tbl=document.getElementById('play-table');
+    if(tbl.contains(under)||under===tbl){
+      const attHand=myRole==='guest'?G.compHand:G.playerHand;
+      if(attHand.find(c=>c.id===dragCard.id)){
+        const isAtt=myRole==='guest'?G.attacker==='comp':G.attacker==='player';
+        const canPlay=isAtt&&(G.phase==='attack'||(G.phase==='defense'&&allDefended()))&&canAttack(dragCard);
+        if(canPlay) tbl.classList.add('drag-over');
+      }
+    }
+  }
+}
+function endDrag(x,y){
+  if(!dragCard) return;
+  if(dragSource) dragSource.classList.remove('dragging');
+  ghost.style.display='none';
+  document.querySelectorAll('.table-attack-card').forEach(e=>e.classList.remove('can-drop'));
+  document.getElementById('play-table').classList.remove('drag-over');
+  ghost.style.display='none'; const under=document.elementFromPoint(x,y);
+  if(under){
+    const attEl=under.closest('.table-attack-card');
+    if(attEl){
+      const idx=parseInt(attEl.dataset.pairIdx); const pair=G.table[idx];
+      if(pair){
+        if(myRole==='guest') sendAction({type:'action',kind:'defend',cardId:dragCard.id,pairIdx:idx});
+        else playerDefendPair(dragCard,pair);
+      }
+    } else {
+      const tbl=document.getElementById('play-table');
+      if(tbl.contains(under)||under===tbl){
+        if(myRole==='guest') sendAction({type:'action',kind:G.phase==='attack'?'attack':'throw',cardId:dragCard.id});
+        else playerPlayToTable(dragCard);
+      }
+    }
+  }
+  dragCard=null; dragSource=null;
+}
+document.addEventListener('mousemove',e=>moveDrag(e.clientX,e.clientY));
+document.addEventListener('mouseup',e=>endDrag(e.clientX,e.clientY));
+document.addEventListener('touchmove',e=>{if(!dragCard)return;e.preventDefault();const t=e.touches[0];moveDrag(t.clientX,t.clientY);},{passive:false});
+document.addEventListener('touchend',e=>{if(!dragCard)return;const t=e.changedTouches[0];endDrag(t.clientX,t.clientY);},{passive:false});
+document.addEventListener('touchcancel',()=>{if(!dragCard)return;if(dragSource)dragSource.classList.remove('dragging');ghost.style.display='none';document.querySelectorAll('.table-attack-card').forEach(e=>e.classList.remove('can-drop'));document.getElementById('play-table').classList.remove('drag-over');dragCard=null;dragSource=null;});
+
+// ════════════════════════════════════════════════
+//  RENDERER
+// ════════════════════════════════════════════════
+function render() {
+  const myHand=myRole==='guest'?G.compHand:G.playerHand;
+  const oppHand=myRole==='guest'?G.playerHand:G.compHand;
+  renderHandEl('computer-hand',oppHand,true,false);
+  renderHandEl('player-hand',myHand,false,true);
+  renderTable(); renderDeck(); renderTrump(); updateButtons();
+}
+function renderGuestHand() {
+  renderHandEl('player-hand',G.compHand,false,true);
+}
+
+function renderHandEl(id,hand,faceDown,isMe) {
+  const el=document.getElementById(id); el.innerHTML='';
+  hand.forEach(card=>{
+    const ce=makeCard(card,faceDown);
+    if(!faceDown&&isMe){
+      const selCard=myRole==='guest'?guestSelected:G.selectedCard;
+      if(selCard?.id===card.id) ce.classList.add('selected');
+      ce.addEventListener('click',e=>{if(!dragCard)onCardClick(card);});
+      ce.addEventListener('mousedown',e=>{if(e.button!==0)return;e.preventDefault();startDrag(card,ce,e.clientX,e.clientY);});
+      let tx,ty;
+      ce.addEventListener('touchstart',e=>{const t=e.touches[0];tx=t.clientX;ty=t.clientY;},{passive:true});
+      ce.addEventListener('touchmove',e=>{if(dragCard)return;const t=e.touches[0];if(Math.abs(t.clientX-tx)>6||Math.abs(t.clientY-ty)>6)startDrag(card,ce,t.clientX,t.clientY);},{passive:true});
+    }
+    el.appendChild(ce);
+  });
+}
+
+function renderTable() {
+  const tbl=document.getElementById('play-table'); tbl.innerHTML='';
+  if(!G.table.length){const m=document.createElement('div');m.id='table-empty-msg';m.textContent='Стол пуст';tbl.appendChild(m);return;}
+  G.table.forEach((pair,idx)=>{
+    const wrap=document.createElement('div');
+    wrap.style.cssText=`position:relative;width:${pair.defense?'calc(var(--cw) + 22px)':'var(--cw)'};height:calc(var(--ch) + 12px);flex-shrink:0;`;
+    const attEl=makeCard(pair.attack,false);
+    attEl.classList.add('table-attack-card'); attEl.dataset.pairIdx=idx;
+    attEl.style.cssText='position:absolute;top:0;left:0;';
+    if(!pair.defense) attEl.addEventListener('click',()=>onTableCardClick(pair));
+    wrap.appendChild(attEl);
+    if(pair.defense){const defEl=makeCard(pair.defense,false);defEl.style.cssText='position:absolute;top:12px;left:18px;transform:rotate(15deg);z-index:2;';wrap.appendChild(defEl);}
+    tbl.appendChild(wrap);
+  });
+}
+
+function makeCard(card,faceDown) {
+  const el=document.createElement('div');
+  el.className='card'+(faceDown?' card-back card-disabled':''); el.dataset.id=card.id;
+  if(faceDown){el.innerHTML='<div class="card-back-pattern"></div>';return el;}
+  const sn=SUIT_NAMES[card.suit]; const red=['hearts','diamonds'].includes(sn);
+  const color=red?'var(--red)':'var(--black-card)';
+  el.innerHTML=`<div class="card-corner suit-${sn}" style="color:${color}"><div>${card.rank}</div><div>${card.suit}</div></div>
+    <div class="card-center suit-${sn}" style="color:${color}">${card.suit}</div>
+    <div class="card-corner bottom suit-${sn}" style="color:${color}"><div>${card.rank}</div><div>${card.suit}</div></div>
+    ${card.suit===G.trumpSuit?'<div class="card-trump-indicator">К</div>':''}`;
+  return el;
+}
+
+function renderDeck() {
+  const pile=document.getElementById('deck-pile'); pile.innerHTML='';
+  const cnt=G.deck.length;
+  if(cnt>0){const lyr=Math.min(3,cnt);for(let i=0;i<lyr;i++){const c=document.createElement('div');c.className='card card-back card-disabled';c.style.cssText=`position:absolute;top:${(lyr-i-1)*2}px;left:${lyr-i-1}px;`;c.innerHTML='<div class="card-back-pattern"></div>';pile.appendChild(c);}}
+  const lbl=document.createElement('div'); lbl.id='deck-count'; lbl.textContent=cnt>0?cnt+' карт':'Пусто'; pile.appendChild(lbl);
+}
+function renderTrump() {
+  const slot=document.getElementById('trump-card-slot'),badge=document.getElementById('trump-suit-badge');
+  slot.innerHTML='';
+  if(G.deck.length>0){const tc=makeCard(G.trumpCard,false);tc.style.cssText='transform:rotate(-90deg);cursor:default;';slot.appendChild(tc);}
+  const sn=SUIT_NAMES[G.trumpSuit]; const red=['hearts','diamonds'].includes(sn);
+  badge.innerHTML=`<span style="color:${red?'var(--red)':'var(--cream)'}">${G.trumpSuit}</span> козырь`;
+}
+
+// ════════════════════════════════════════════════
+//  UI HELPERS
+// ════════════════════════════════════════════════
+function updateButtons() {
+  const ok=!G.gameOver&&!G.roundEnding;
+  if(myRole==='guest'){
+    const canTake=ok&&G.attacker==='player'&&G.phase==='defense';
+    const canDone=ok&&G.attacker==='comp'&&allDefended();
+    document.getElementById('btn-take').disabled=!canTake;
+    document.getElementById('btn-done').disabled=!canDone;
+  } else {
+    document.getElementById('btn-take').disabled=!(ok&&G.attacker==='comp'&&G.phase==='defense');
+    document.getElementById('btn-done').disabled=!(ok&&((G.attacker==='player'&&G.table.length>0&&!undefended().length)||(G.attacker==='comp'&&G.phase==='defense'&&allDefended())));
+  }
+}
+
+function setStatus(main,hint){document.getElementById('status-text').textContent=main;document.getElementById('phase-text').textContent=hint||'';}
+let _ft;
+function flash(msg){const el=document.getElementById('status-text');el.style.color='#e88';el.textContent=msg;clearTimeout(_ft);_ft=setTimeout(()=>{el.style.color='';restoreStatus();},1800);}
+function restoreStatus(){
+  if(!G||G.gameOver) return;
+  const imAtt=myRole==='guest'?G.attacker==='comp':G.attacker==='player';
+  if(imAtt) setStatus('Ваш ход','Атакуйте');
+  else setStatus('Защищайтесь','Перетащите или выберите карту');
+}
+
+function updateTurnStatus() {
+  if(myRole==='solo') return;
+  const imAtt=myRole==='guest'?G.attacker==='comp':G.attacker==='player';
+  if(G.phase==='attack'||G.phase==='defense'){
+    if(imAtt) setStatus('Ваш ход','Атакуйте');
+    else setStatus('Ход соперника','Ждите...');
+  }
+}
+
+function showThinking(v){document.getElementById('ai-thinking').classList.toggle('visible',v);}
+function updateScoreDisplay(){document.getElementById('score-player').textContent=scores.player;document.getElementById('score-comp').textContent=scores.comp;}
+
+function setConnBadge(text,cls){const el=document.getElementById('conn-badge');el.textContent=text;el.className='';el.classList.add(cls);}
+
+function updateOppLabel(){
+  const lbl=document.getElementById('opp-label');
+  if(myRole==='solo') lbl.textContent='▲ Соперник (AI)';
+  else lbl.textContent='▲ Соперник';
+}
+
+// ════════════════════════════════════════════════
+//  CHAT
+// ════════════════════════════════════════════════
+function addChatMessage(who,text,isMine){
+  const msgs=document.getElementById('chat-msgs');
+  const div=document.createElement('div'); div.className='chat-msg'+(isMine?' mine':'');
+  div.innerHTML=`<span class="who">${who}:</span> ${escapeHtml(text)}`;
+  msgs.appendChild(div); msgs.scrollTop=msgs.scrollHeight;
+  if(!document.getElementById('chat-panel').classList.contains('open')&&!isMine){
+    unreadChat++; const b=document.getElementById('chat-badge'); b.textContent=unreadChat; b.style.display='flex';
+  }
+}
+function escapeHtml(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function sendChat(){
+  const inp=document.getElementById('chat-input'); const txt=inp.value.trim(); if(!txt)return;
+  inp.value='';
+  addChatMessage('Вы',txt,true);
+  if(conn&&conn.open) conn.send({type:'chat',msg:txt});
+}
+
+document.getElementById('chat-toggle').addEventListener('click',()=>{
+  const panel=document.getElementById('chat-panel'); panel.classList.toggle('open');
+  if(panel.classList.contains('open')){
+    unreadChat=0; const b=document.getElementById('chat-badge'); b.style.display='none';
+    document.getElementById('chat-input').focus();
+  }
+});
+document.getElementById('chat-send').addEventListener('click',sendChat);
+document.getElementById('chat-input').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
+
+// ════════════════════════════════════════════════
+//  NETWORK
+// ════════════════════════════════════════════════
+function genCode(){return Math.random().toString(36).substr(2,6).toUpperCase();}
+
+function syncToGuest(){
+  if(myRole!=='host'||!conn||!conn.open) return;
+  conn.send({type:'state',G:JSON.parse(JSON.stringify(G))});
+}
+
+function setupConnHandlers(c){
+  conn=c;
+  c.on('data',data=>{
+    if(data.type==='state'&&myRole==='guest'){
+      G=data.G; guestSelected=null; render(); updateButtons();
+    } else if(data.type==='action'&&myRole==='host'){
+      applyGuestAction(data); render();
+    } else if(data.type==='chat'){
+      addChatMessage('Соперник',data.msg,false);
+    } else if(data.type==='start'&&myRole==='guest'){
+      // guest receives initial game start signal
+      G=data.G; guestSelected=null;
+      hideAllOverlays(); showGameUI();
+      setConnBadge('● Онлайн','online');
+      render(); updateButtons(); updateTurnStatus();
+    } else if(data.type==='rematch'&&myRole==='guest'){
+      G=data.G; guestSelected=null; render(); updateButtons(); updateTurnStatus();
+      document.getElementById('end-overlay').classList.remove('active');
+    }
+  });
+  c.on('close',()=>{
+    setConnBadge('● Разъединён','offline');
+    setStatus('Соединение потеряно','Соперник отключился');
+  });
+  c.on('error',err=>{console.warn('conn error',err);});
+}
+
+function createGame(){
+  const code=genCode();
+  document.getElementById('start-overlay').classList.remove('active');
+  document.getElementById('create-overlay').classList.add('active');
+  document.getElementById('room-code-display').textContent=code;
+  document.getElementById('lobby-status').innerHTML='<span class="spinner"></span>Ожидание игрока...';
+
+  peer=new Peer(code);
+  peer.on('error',err=>{
+    document.getElementById('lobby-status').innerHTML=`<span style="color:#e88">Ошибка: ${err.type}</span>`;
+  });
+  peer.on('connection',c=>{
+    myRole='host';
+    setupConnHandlers(c);
+    c.on('open',()=>{
+      document.getElementById('lobby-status').textContent='✓ Игрок подключился! Начинаем...';
+      setTimeout(()=>{
+        G=newG(Math.random()<.5?'player':'comp');
+        hideAllOverlays(); showGameUI();
+        setConnBadge('● Онлайн','online');
+        updateOppLabel(); render(); updateButtons();
+        // Send start signal to guest
+        c.send({type:'start',G:JSON.parse(JSON.stringify(G))});
+        if(myRole==='host'){
+          if(G.attacker==='comp'){setStatus('Соперник атакует','Готовьтесь');}
+          else setStatus('Ваш ход','Атакуйте');
+        }
+        updateButtons();
+      },800);
+    });
+  });
+}
+
+function joinGame(code){
+  myRole='guest';
+  peer=new Peer();
+  peer.on('open',()=>{
+    const c=peer.connect(code,{reliable:true});
+    conn=c;
+    document.getElementById('join-status').textContent='Подключение...';
+    c.on('open',()=>{
+      document.getElementById('join-status').textContent='Подключено! Ожидание старта...';
+      setupConnHandlers(c);
+      setConnBadge('● Онлайн','online');
+      updateOppLabel();
+    });
+    c.on('error',err=>{
+      document.getElementById('join-status').textContent='Ошибка подключения';
+      myRole='solo';
+    });
+  });
+  peer.on('error',err=>{
+    document.getElementById('join-status').innerHTML=`<span style="color:#e88">Ошибка: ${err.type}. Проверьте код.</span>`;
+    myRole='solo';
+  });
+}
+
+function sendAction(data){if(conn&&conn.open)conn.send(data);}
+
+// ════════════════════════════════════════════════
+//  GAME CONTROL
+// ════════════════════════════════════════════════
+function hideAllOverlays(){
+  ['start-overlay','create-overlay','join-overlay','end-overlay'].forEach(id=>document.getElementById(id).classList.remove('active'));
+}
+function showGameUI(){
+  document.getElementById('chat-toggle').style.display= myRole==='solo'?'none':'flex';
+  document.getElementById('chat-panel').classList.remove('open');
+}
+
+function startSoloGame(){
+  myRole='solo'; peer=null; conn=null;
+  G=newG(Math.random()<.5?'player':'comp');
+  hideAllOverlays(); showGameUI();
+  setConnBadge('','');
+  updateOppLabel(); render(); updateScoreDisplay();
+  if(G.attacker==='comp'){setStatus('AI атакует','Готовьтесь');setTimeout(()=>aiTakeTurn(),1000);}
+  else setStatus('Ваш ход','Атакуйте');
+  updateButtons();
+}
+
+function requestRematch(){
+  if(myRole==='host'){
+    G=newG(Math.random()<.5?'player':'comp');
+    document.getElementById('end-overlay').classList.remove('active');
+    render(); updateButtons();
+    if(conn&&conn.open) conn.send({type:'rematch',G:JSON.parse(JSON.stringify(G))});
+    updateTurnStatus();
+  } else if(myRole==='guest'){
+    // Guest just closes end screen, host will send rematch
+    document.getElementById('end-overlay').classList.remove('active');
+    setStatus('Ждём новую партию...','');
+  } else {
+    // Solo
+    G=newG(Math.random()<.5?'player':'comp');
+    document.getElementById('end-overlay').classList.remove('active');
+    render(); updateScoreDisplay();
+    if(G.attacker==='comp'){setStatus('AI атакует','Готовьтесь');setTimeout(()=>aiTakeTurn(),1000);}
+    else setStatus('Ваш ход','Атакуйте');
+    updateButtons();
+  }
+}
+
+function goToMenu(){
+  if(peer){try{peer.destroy();}catch(e){} peer=null;} conn=null;
+  myRole='solo'; scores={player:0,comp:0};
+  hideAllOverlays();
+  document.getElementById('start-overlay').classList.add('active');
+  document.getElementById('chat-toggle').style.display='none';
+  document.getElementById('chat-panel').classList.remove('open');
+  document.getElementById('chat-msgs').innerHTML='';
+  setConnBadge('','');
+  updateScoreDisplay();
+}
+
+// ════════════════════════════════════════════════
+//  EVENT LISTENERS
+// ════════════════════════════════════════════════
+document.getElementById('btn-take').addEventListener('click',()=>{ if(myRole==='guest') guestTake(); else playerTake(); });
+document.getElementById('btn-done').addEventListener('click',()=>{ if(myRole==='guest') guestDone(); else playerDone(); });
+document.getElementById('btn-new-game').addEventListener('click',requestRematch);
+document.getElementById('btn-to-menu').addEventListener('click',goToMenu);
+
+document.getElementById('btn-vs-ai').addEventListener('click',startSoloGame);
+document.getElementById('btn-create').addEventListener('click',createGame);
+document.getElementById('btn-join-start').addEventListener('click',()=>{
+  document.getElementById('start-overlay').classList.remove('active');
+  document.getElementById('join-overlay').classList.add('active');
+  document.getElementById('join-code-input').focus();
+});
+document.getElementById('btn-cancel-create').addEventListener('click',()=>{
+  if(peer){try{peer.destroy();}catch(e){} peer=null;}
+  document.getElementById('create-overlay').classList.remove('active');
+  document.getElementById('start-overlay').classList.add('active');
+});
+document.getElementById('btn-cancel-join').addEventListener('click',()=>{
+  if(peer){try{peer.destroy();}catch(e){} peer=null;} myRole='solo';
+  document.getElementById('join-overlay').classList.remove('active');
+  document.getElementById('start-overlay').classList.add('active');
+  document.getElementById('join-status').textContent='';
+});
+document.getElementById('btn-do-join').addEventListener('click',()=>{
+  const code=document.getElementById('join-code-input').value.trim().toUpperCase();
+  if(code.length<4){document.getElementById('join-status').textContent='Слишком короткий код';return;}
+  document.getElementById('join-status').textContent='';
+  joinGame(code);
+});
+document.getElementById('join-code-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter') document.getElementById('btn-do-join').click();
+  e.target.value=e.target.value.toUpperCase();
+});
+document.getElementById('room-code-display').addEventListener('click',()=>{
+  const code=document.getElementById('room-code-display').textContent;
+  navigator.clipboard?.writeText(code).then(()=>{
+    const orig=document.querySelector('.copy-hint').textContent;
+    document.querySelector('.copy-hint').textContent='✓ Скопировано!';
+    setTimeout(()=>document.querySelector('.copy-hint').textContent=orig,2000);
+  });
+});
+</script>
+</body>
+</html>
